@@ -35,8 +35,9 @@ bool wm_nonblocking = false;
 bool stateWifi;
 bool stateMode;
 WiFiManager wifi;
-
-  
+unsigned long waktuAwal=0,waktuJeda=200;
+int count = 0;
+bool modee;
 void setup() {
   Serial.begin(115200);
   pinMode(sensor, INPUT_PULLUP);
@@ -118,7 +119,8 @@ digitalWrite(led_pin, LOW);
   /* setup the OTA server */
   ArduinoOTA.begin();
   Serial.println("Ready");
-
+  modee=false;
+  count=0;
   delay(1000);
  // Serial.println(String()+"NTP in the setup:"+ Clock.getHours()+":"+ Clock.getMinutes()+":"+Clock.getSeconds());
    }
@@ -137,6 +139,7 @@ void loop() {
   cekLogic();
   runWar();
   indikator();
+  cekButton();
   if (Time >= 122)
   {
     stateOut = 0;
@@ -144,21 +147,59 @@ void loop() {
     Time = 0;
   }
   digitalWrite(relay_1, stateOut);
-
-//  Serial.println(String() + "stateOut:" + stateOut);
-//  // Serial.println(String() + "trigg   :"+ trigg);
+  if(count > 20){ delay(100);   ESP.restart(); }
+  Serial.println(String() + "count:" + count);
+  Serial.println(String() + "modee   :"+ modee);
 //  Serial.println(String() + "Time   :" + Time);
-if(digitalRead(pinJum)==LOW){  
-  stateWifi = !stateWifi; 
-  delay(2000); 
-  digitalWrite(dimmer_pin, HIGH);
-  digitalWrite(led_pin, HIGH);
-  EEPROM.write(0,stateWifi); 
-     EEPROM.commit();
-  delay(1000);
-  ESP.restart();}
+//if(digitalRead(pinJum)==LOW){  
+//  stateWifi = !stateWifi; 
+//  delay(2000); 
+//  digitalWrite(dimmer_pin, HIGH);
+//  digitalWrite(led_pin, HIGH);
+//  EEPROM.write(0,stateWifi); 
+//     EEPROM.commit();
+//  delay(1000);
+//  ESP.restart();}
+  
 }
 
+void cekButton()
+{
+  if(digitalRead(pinJum) == LOW)
+  {
+     Serial.println(String() + "klik 1x aktif");
+    waktuAwal = millis();
+    stateWifi = !stateWifi;
+    modee=true;
+//    digitalWrite(dimmer_pin, HIGH);
+//    digitalWrite(led_pin, HIGH);
+    EEPROM.write(0,stateWifi); 
+    EEPROM.commit();
+  }
+ // else{ waktuAwal = 0; }
+
+  while(digitalRead(pinJum) == LOW)
+  {
+    if(millis() - waktuAwal >5000)
+    {
+//     for(int i = 0; i < 10; i++)
+//     {
+//      digitalWrite(dimmer_pin, HIGH);
+//      digitalWrite(led_pin, HIGH);
+//      delay(80);
+//      digitalWrite(dimmer_pin, LOW);
+//      digitalWrite(led_pin, LOW);
+//      delay(80);
+//     }
+     Serial.println(String() + "klik 2x aktif");
+     wifi.resetSettings();
+     delay(50);
+     ESP.restart();
+    }
+  }
+ 
+   Serial.println(String() + "waktuAwal:" + waktuAwal);
+}
 void cekLogic()
 {
   int data = digitalRead(sensor);
@@ -199,5 +240,6 @@ void indikator()
     saveFlip = tmr;
     stateFlip = !stateFlip;
     digitalWrite(ledFlip, stateFlip);
+     if(modee==true){count++;}
   }
 }
