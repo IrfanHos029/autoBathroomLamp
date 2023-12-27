@@ -19,7 +19,7 @@ int led_state = 4;
 int dimmer_led = 16;
 #define pinJum D3
 
-#define sensor D5 //14  
+#define sensor D5  //14
 #define led_war D1//5
 #define relay_1 D7 //gpio13
 #define ledFlip D4//2
@@ -40,13 +40,14 @@ int count = 0;
 bool mode=false;
 void setup() {
   Serial.begin(115200);
-  pinMode(sensor, INPUT_PULLUP);
+   EEPROM.begin(12);
+  pinMode(sensor, INPUT);
   pinMode(pinJum,INPUT_PULLUP);
   pinMode(led_war, OUTPUT);
   pinMode(ledFlip, OUTPUT);
   pinMode(relay_1, OUTPUT);
   digitalWrite(relay_1, LOW);
-  EEPROM.begin(12);
+ 
   if(wm_nonblocking) wifi.setConfigPortalBlocking(false);
   stateWifi = EEPROM.read(0);
   stateMode = EEPROM.read(0);
@@ -131,8 +132,12 @@ void setup() {
 }
 
 void loop() {
-  ArduinoOTA.handle();
-  if(wm_nonblocking) wifi.process();
+  if(stateWifi)
+  {
+    ArduinoOTA.handle();
+    if(wm_nonblocking) wifi.process();
+  }
+  
   cekLogic();
   runWar();
   indikator();
@@ -144,22 +149,7 @@ void loop() {
     Time = 0;
   }
   digitalWrite(relay_1, stateOut);
-  if(stateMode != stateWifi)
-  {  
-    Serial.println(String() + "mode berubah");
-    for (int i = 0; i < 150; i++) 
-    {
-      analogWrite(led_state, (i * 100) % 1001);
-      analogWrite(dimmer_led, (i * 100) % 1001);
-      delay(50);
-    }
-    delay(1000);
-    ESP.restart();
-  }
-  if(stateMode == stateWifi)
-  {
-     cekButton();
-  }
+
 }
 
 void cekButton()
@@ -172,6 +162,18 @@ void cekButton()
     Serial.println(String() + "button ditekan,stateWifi:" + stateWifi + " stateMode:" + stateMode);
   }
      
+   if(stateMode != stateWifi)
+  {  
+    Serial.println(String() + "mode berubah");
+    for (int i = 0; i < 150; i++) 
+    {
+      analogWrite(led_state, (i * 100) % 1001);
+      analogWrite(dimmer_led, (i * 100) % 1001);
+      delay(50);
+    }
+    delay(1000);
+    ESP.restart();
+  }
  
    
 }
@@ -181,7 +183,7 @@ void cekLogic()
   int data = digitalRead(sensor);
   Serial.println(String() + "data:" + data);
   //flag = data;
-  if (data == HIGH) {
+  if (digitalRead(sensor) == HIGH) {
     digitalWrite(ledFlip,LOW);
     stateOut = 1;
     trigg = 1;
@@ -192,16 +194,22 @@ void cekLogic()
     digitalWrite(ledFlip,HIGH);
     flag = 1;
   }
+   if(stateMode == stateWifi)
+  {
+     cekButton();
+  }
 }
 
 void runWar() {
   unsigned long timer = millis();
-  if (trigg == 1 && flag == 1 && timer - saveTimer > 1000)
+  if (flag == 1 && trigg == 1 && timer - saveTimer > 1000)
   {
     saveTimer = timer;
     stateWar = !stateWar;
     Time++;
   }
+  if(flag == 0){ stateWar=0; }
+  
   digitalWrite(led_war, stateWar);
 }
 
